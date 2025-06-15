@@ -25,13 +25,19 @@ class BookScraper:
 
     def parse_books(self, html):
         soup = BeautifulSoup(html, 'html.parser')
+        # Extraer categoría a nivel de página (fallback si no hay crumb completa)
+        breadcrumb = soup.select_one('ul.breadcrumb')
+        crumbs = breadcrumb.find_all('li') if breadcrumb else []
+        page_category = crumbs[-1].text.strip() if crumbs else 'Unknown'
+
         articles = soup.select('article.product_pod')
         books = []
         for art in articles:
             title = art.h3.a['title']
             price = art.select_one('p.price_color').text
             stock = art.select_one('p.instock.availability').text.strip()
-            category = art.find_previous('ul', class_='breadcrumb').find_all('li')[2].a.text
+            # Usar categoría de página para todos los libros
+            category = page_category
             books.append({
                 'title': title,
                 'price': price,
