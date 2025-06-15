@@ -2,52 +2,87 @@ import requests
 from bs4 import BeautifulSoup
 import time
 import random
+import urllib.parse
 
 class BookScraper:
 
-    URL_BASE = 'http://books.toscrape.com/catalogue/page-{}.html'
+    def __init__(self):
+        self._base = 'http://books.toscrape.com/'
+        self._headers = ['Mozilla/5.0', 'Safari/537.36', 'Chrome/91.0']
 
-    def __init__(self, total_paginas=1):
-            self.total_paginas = total_paginas
-            self.lista_headers = [
-                'Mozilla/5.0', 'Safari/537.36', 'Chrome/91.0'
-        ]
+    def obtener_categorias(self):
+        """Devuelve lista de tuplas (nombre, url_completa)."""
+        try:
+            resp = requests.get(self._base,
+                                headers={'User-Agent': random.choice(self._headers)})
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"❌ Error al descargar página principal: {e}")
+            return []
 
-    def obtener_pagina(self, numero_pagina):
-        headers = {'User-Agent': random.choice(self.lista_headers)}
-        url = self.URL_BASE.format(numero_pagina)
-        respuesta = requests.get(url, headers=headers)
-        if respuesta.status_code != 200:
-            raise ConnectionError(f"Error al acceder a {url}")
-        time.sleep(random.uniform(1, 3))
-        return respuesta.text
+        try:
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            enlaces = soup.select('div.side_categories ul li ul li a')
+            cats = []
+            for a in enlaces:
+                nombre = a.text.strip()
+                href = a['href']
+                url = urllib.parse.urljoin(self._base, href)
+                cats.append((nombre, url))
+            return cats
+        except Exception as e:
+            print(f"❌ Error al parsear categorías: {e}")
+            return []
+
+    def descargar_pagina(self, url):
+        """Devuelve el HTML o None en caso de error."""
+        try:
+            resp = requests.get(url, headers={'User-Agent': random.choice(self._headers)})
+            resp.raise_for_status()
+            time.sleep(random.uniform(1,2))
+            return resp.text
+        except Exception as e:
+            # silencio 404 de paginación
+            if isinstance(e, requests.HTTPError) and e.response.status_code == 404:
+                return None
+            print(f"❌ Error descargando {url}: {e}")
+            return None
 
     def parsear_libros(self, html):
-        soup = BeautifulSoup(html, 'html.parser')
-        breadcrumb = soup.select_one('ul.breadcrumb')
-        migas = breadcrumb.find_all('li') if breadcrumb else []
-        categoria_pagina = migas[-1].text.strip() if migas else 'Desconocida'
+        """Extrae lista de dicts con título, precio y stock de esa página."""
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+            filas = soup.select('article.product_pod')
+            lista = []
+            for art in filas:
+                lista.append({
+                    'titulo': art.h3.a['title'],
+                    'precio': art.select_one('p.price_color').text,
+                    'stock': art.select_one('p.instock.availability').text.strip()
+                })
+            return lista
+        except Exception as e:
+            print(f"❌ Error parseando libros: {e}")
+            return []
 
-        articulos = soup.select('article.product_pod')
-        libros = []
-        for art in articulos:
-            titulo = art.h3.a['title']
-            precio = art.select_one('p.price_color').text
-            stock = art.select_one('p.instock.availability').text.strip()
-            categoria = categoria_pagina
-            libros.append({
-                'titulo': titulo,
-                'precio': precio,
-                'stock': stock,
-                'categoria': categoria
-            })
-        return libros
-
-    # Recorre todas las páginas y devuelve una lista de registros.
-    def extraer(self):
-        lista_total = []
-        for pagina in range(1, self.total_paginas + 1):
-            html = self.obtener_pagina(pagina)
-            libros = self.parsear_libros(html)
-            lista_total.extend(libros)
-        return lista_total
+    def extraer_libros(self):
+        """Recorre todas las categorías y sus páginas, devuelve la lista completa."""
+        resultado = []
+        for cat, url_cat in self.obtener_categorias():
+            pagina = 1
+            while True:
+                url = url_cat if pagina == 1 else url_cat.replace(
+                    'index.html', f'page-{pagina}.html'
+                )
+                html = self.descargar_pagina(url)
+                if not html:
+                    break
+                libros = self.parsear_libros(html)
+                if not libros:
+                    break
+                # añadimos la categoría a cada libro
+                for libro in libros:
+                    libro['categoria'] = cat
+                resultado.extend(libros)
+                pagina += 1
+        return resultado
