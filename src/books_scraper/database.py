@@ -7,24 +7,32 @@ class DataBase:
 
     # Gestiona almacenamiento de datos en SQLite.
     # Crea la base de datos si no existe.
+    def __init__(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.rutadb = os.path.join(base_dir, "static", "db", "books.db")
 
-    def __init__(self, db_path='src/books_scraper/static/db/books.db'):
-        self.db_path = db_path
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
 
-    def save(self, data, table_name='books'):
-        # Recibe lista de dicts y guarda en SQLite.
-        df = pd.DataFrame(data)
-        hoy = datetime.today().strftime('%Y-%m-%d')
-        df['scrape_date'] = hoy
-        conn = sqlite3.connect(self.db_path)
-        df.to_sql(table_name, conn, if_exists='replace', index=False)
-        conn.close()
-        print(f"✅ Guardados {len(df)} registros en {self.db_path}")
+    # Funcion para guarda la informacion
+    def guardar(self, datos, nombre_tabla='libros'):
+        try:
+            df = pd.DataFrame(datos)
+            hoy = datetime.today().strftime('%Y-%m-%d')
+            df['fecha_extraccion'] = hoy
+            conn = sqlite3.connect(self.ruta_bd)
+            df.to_sql(nombre_tabla, conn, if_exists='replace', index=False)
+            conn.close()
+            print(f"✅ Guardado en base de datos ({df.shape[0]} registros)")
+        except Exception as e:
+            print(f"❌ Error guardando en BD: {e}")
 
-    def load(self, table_name='books'):
-        # Carga datos de la tabla en un DataFrame.
-        conn = sqlite3.connect(self.db_path)
-        df = pd.read_sql(f"SELECT * FROM {table_name}", conn)
-        conn.close()
-        return df
+     # Funcion para Obtener los datos la Bd
+    def cargar(self, nombre_tabla='libros'):
+        try:
+            conn = sqlite3.connect(self.ruta_bd)
+            df = pd.read_sql(f"SELECT * FROM {nombre_tabla}", conn)
+            print(f"✅ Cargado desde BD ({df.shape[0]} registros)")
+            conn.close()
+            return df
+        except Exception as e:
+            print(f"❌ Error leyendo de BD: {e}")
+            return pd.DataFrame()

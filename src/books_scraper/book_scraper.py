@@ -7,50 +7,47 @@ class BookScraper:
 
     BASE_URL = 'http://books.toscrape.com/catalogue/page-{}.html'
 
-    def __init__(self, total_pages=1):
-        self.total_pages = total_pages
-        self.headers_list = [
-            'Mozilla/5.0', 'Safari/537.36', 'Chrome/91.0'
+    def __init__(self, total_paginas=1):
+            self.total_paginas = total_paginas
+            self.lista_headers = [
+                'Mozilla/5.0', 'Safari/537.36', 'Chrome/91.0'
         ]
 
-    def fetch_page(self, page_number):
-        headers = {'User-Agent': random.choice(self.headers_list)}
-        url = self.BASE_URL.format(page_number)
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
+    def obtener_pagina(self, numero_pagina):
+        headers = {'User-Agent': random.choice(self.lista_headers)}
+        url = self.URL_BASE.format(numero_pagina)
+        respuesta = requests.get(url, headers=headers)
+        if respuesta.status_code != 200:
             raise ConnectionError(f"Error al acceder a {url}")
-        # Pausa aleatoria para no sobrecargar el servidor
         time.sleep(random.uniform(1, 3))
-        return response.text
+        return respuesta.text
 
-    def parse_books(self, html):
+    def parsear_libros(self, html):
         soup = BeautifulSoup(html, 'html.parser')
-        # Extraer categoría a nivel de página (fallback si no hay crumb completa)
         breadcrumb = soup.select_one('ul.breadcrumb')
-        crumbs = breadcrumb.find_all('li') if breadcrumb else []
-        page_category = crumbs[-1].text.strip() if crumbs else 'Unknown'
+        migas = breadcrumb.find_all('li') if breadcrumb else []
+        categoria_pagina = migas[-1].text.strip() if migas else 'Desconocida'
 
-        articles = soup.select('article.product_pod')
-        books = []
-        for art in articles:
-            title = art.h3.a['title']
-            price = art.select_one('p.price_color').text
+        articulos = soup.select('article.product_pod')
+        libros = []
+        for art in articulos:
+            titulo = art.h3.a['title']
+            precio = art.select_one('p.price_color').text
             stock = art.select_one('p.instock.availability').text.strip()
-            # Usar categoría de página para todos los libros
-            category = page_category
-            books.append({
-                'title': title,
-                'price': price,
+            categoria = categoria_pagina
+            libros.append({
+                'titulo': titulo,
+                'precio': precio,
                 'stock': stock,
-                'category': category
+                'categoria': categoria
             })
-        return books
+        return libros
 
-    def scrape(self):
-        # Recorre todas las páginas y devuelve una lista de registros.
-        all_books = []
-        for page in range(1, self.total_pages + 1):
-            html = self.fetch_page(page)
-            books = self.parse_books(html)
-            all_books.extend(books)
-        return all_books
+    # Recorre todas las páginas y devuelve una lista de registros.
+    def extraer(self):
+        lista_total = []
+        for pagina in range(1, self.total_paginas + 1):
+            html = self.obtener_pagina(pagina)
+            libros = self.parsear_libros(html)
+            lista_total.extend(libros)
+        return lista_total
