@@ -18,7 +18,7 @@ class DataBase:
             df = pd.DataFrame(datos)
             hoy = datetime.today().strftime('%Y-%m-%d')
             df['fecha_extraccion'] = hoy
-            conn = sqlite3.connect(self.ruta_bd)
+            conn = sqlite3.connect(self.rutadb)
             df.to_sql(nombre_tabla, conn, if_exists='replace', index=False)
             conn.close()
             print(f"✅ Guardado en base de datos ({df.shape[0]} registros)")
@@ -28,7 +28,7 @@ class DataBase:
      # Funcion para Obtener los datos la Bd
     def cargar(self, nombre_tabla='libros'):
         try:
-            conn = sqlite3.connect(self.ruta_bd)
+            conn = sqlite3.connect(self.rutadb)
             df = pd.read_sql(f"SELECT * FROM {nombre_tabla}", conn)
             print(f"✅ Cargado desde BD ({df.shape[0]} registros)")
             conn.close()

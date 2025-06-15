@@ -5,7 +5,7 @@ import random
 
 class BookScraper:
 
-    BASE_URL = 'http://books.toscrape.com/catalogue/page-{}.html'
+    URL_BASE = 'http://books.toscrape.com/catalogue/page-{}.html'
 
     def __init__(self, total_paginas=1):
             self.total_paginas = total_paginas
